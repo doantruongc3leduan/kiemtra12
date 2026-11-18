@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trường THPT Lê Duẩn - Hệ Thống Kiểm Tra Trắc Nghiệm Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --primary: #0066ff;
+      --primary-dark: #0047b3;
+      --primary-light: #e6f0ff;
+      --accent: #00c6ff;
+      --white: #ffffff;
+      --bg-gradient: linear-gradient(135deg, #f0f6ff 0%, #dceaff 50%, #eef5ff 100%);
+      --glass-bg: rgba(255, 255, 255, 0.88);
+      --glass-border: rgba(255, 255, 255, 0.95);
+      --text-main: #0f2544;
+      --text-muted: #5a7194;
+      --danger: #ff2e54;
+      --success: #00b87c;
+      --shadow-3d: 0 20px 40px -15px rgba(0, 102, 255, 0.18), 0 8px 16px -8px rgba(15, 37, 68, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; user-select: none; }
+    body { min-height: 100vh; background: var(--bg-gradient); color: var(--text-main); display: flex; justify-content: center; align-items: center; padding: 20px; position: relative; overflow-x: hidden; }
+
+    .orb { position: fixed; border-radius: 50%; filter: blur(50px); z-index: 0; pointer-events: none; }
+    .orb-1 { width: 380px; height: 380px; background: radial-gradient(circle, rgba(0, 198, 255, 0.35), transparent); top: -80px; left: -80px; }
+    .orb-2 { width: 450px; height: 450px; background: radial-gradient(circle, rgba(0, 102, 255, 0.25), transparent); bottom: -120px; right: -100px; }
+
+    .app-container { position: relative; z-index: 1; width: 100%; max-width: 920px; }
+    .card-3d { background: var(--glass-bg); backdrop-filter: blur(20px); border: 2px solid var(--glass-border); border-radius: 28px; box-shadow: var(--shadow-3d); padding: 40px; }
+    .hidden { display: none !important; }
+
+    .badge-3d { display: inline-block; background: linear-gradient(135deg, var(--primary), var(--accent)); color: var(--white); padding: 8px 20px; border-radius: 50px; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 16px; box-shadow: 0 6px 15px rgba(0,102,255,0.3); }
+    .login-header { text-align: center; margin-bottom: 28px; }
+    .login-header h1 { font-size: 26px; font-weight: 800; color: var(--text-main); margin-bottom: 6px; }
+    .login-header p { color: var(--text-muted); font-size: 15px; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+    .input-3d { width: 100%; padding: 16px 20px; border-radius: 16px; border: 2px solid #d6e4ff; background: rgba(255,255,255,0.95); font-size: 16px; font-weight: 600; color: var(--text-main); outline: none; transition: all 0.25s ease; }
+    .input-3d:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0,102,255,0.15); }
+
+    .btn-3d { width: 100%; padding: 18px 28px; border: none; border-radius: 18px; background: linear-gradient(135deg, var(--primary), #0052cc); color: var(--white); font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 0 var(--primary-dark), 0 15px 25px rgba(0,102,255,0.35); transition: all 0.15s ease; }
+    .btn-3d:hover { transform: translateY(-2px); }
+    .btn-3d:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--primary-dark); }
+
+    /* Màn hình phòng chờ */
+    .waiting-box { text-align: center; padding: 20px 0; }
+    .pulse-ring { width: 90px; height: 90px; border-radius: 50%; background: var(--primary-light); border: 3px solid var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 36px; animation: pulseWave 1.8s infinite; }
+    @keyframes pulseWave { 0% { box-shadow: 0 0 0 0 rgba(0,102,255,0.4); } 70% { box-shadow: 0 0 0 25px rgba(0,102,255,0); } 100% { box-shadow: 0 0 0 0 rgba(0,102,255,0); } }
+
+    /* Giao diện Giáo viên Admin */
+    .admin-container { max-width: 1000px; }
+    .admin-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,102,255,0.06); }
+    .admin-table th, .admin-table td { padding: 14px 18px; text-align: left; font-size: 14px; border-bottom: 1px solid #edf2f7; }
+    .admin-table th { background: var(--primary-light); color: var(--primary-dark); font-weight: 700; }
+
+    /* Giao diện làm bài */
+    .exam-topbar { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; background: var(--white); padding: 18px 24px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,102,255,0.08); margin-bottom: 24px; align-items: center; border: 1px solid #e1ecff; }
+    .student-badge { display: flex; align-items: center; gap: 12px; }
+    .avatar-3d { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: var(--white); display: flex; align-items: center; justify-content: center; font-weight: 800; }
+    .progress-track { height: 12px; background: #e6f0ff; border-radius: 10px; overflow: hidden; margin-top: 6px; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.3s ease; }
+    .timer-box { justify-self: end; background: var(--primary-light); padding: 10px 18px; border-radius: 16px; font-weight: 800; font-size: 18px; color: var(--primary-dark); border: 2px solid #cce0ff; }
+
+    .question-card { background: var(--white); border-radius: 22px; padding: 30px; border: 1px solid #e1ecff; box-shadow: 0 12px 30px rgba(0,102,255,0.06); margin-bottom: 24px; }
+    .q-number { display: inline-block; background: var(--primary-light); color: var(--primary); font-weight: 800; font-size: 13px; padding: 6px 14px; border-radius: 10px; margin-bottom: 14px; }
+    .q-text { font-size: 18px; font-weight: 700; line-height: 1.5; margin-bottom: 20px; }
+    .q-image img { max-width: 100%; max-height: 240px; border-radius: 12px; margin-bottom: 20px; object-fit: contain; }
+
+    .options-grid { display: grid; gap: 14px; }
+    .option-item { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 16px; background: #f8fbff; border: 2px solid #e1ecff; cursor: pointer; transition: all 0.2s ease; }
+    .option-item:hover { background: #f0f6ff; border-color: #99c2ff; transform: translateY(-2px); }
+    .option-item.selected { background: linear-gradient(135deg, #e6f0ff, #d4e6ff); border-color: var(--primary); }
+    .opt-letter { width: 34px; height: 34px; border-radius: 10px; background: var(--white); color: var(--primary); font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #cce0ff; flex-shrink: 0; }
+    .option-item.selected .opt-letter { background: var(--primary); color: var(--white); border-color: var(--primary); }
+
+    .nav-footer { display: flex; justify-content: space-between; align-items: center; }
+    .btn-nav { padding: 14px 24px; border-radius: 14px; border: 2px solid #cce0ff; background: var(--white); color: var(--primary); font-weight: 700; cursor: pointer; }
+    .btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+    .question-dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .dot { width: 30px; height: 30px; border-radius: 9px; background: var(--white); border: 2px solid #d6e4ff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
+    .dot.active { border-color: var(--primary); color: var(--primary); }
+    .dot.answered { background: var(--primary); border-color: var(--primary); color: white; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,37,68,0.75); backdrop-filter: blur(8px); z-index: 999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+    .warning-card { background: white; max-width: 480px; width: 100%; border-radius: 26px; padding: 36px; text-align: center; border: 3px solid var(--danger); box-shadow: 0 25px 50px rgba(255,46,84,0.35); }
+    .score-sphere { width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; margin: 0 auto 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 15px 30px rgba(0,102,255,0.3); border: 5px solid white; }
+    .loader { width: 40px; height: 40px; border: 4px solid #d6e4ff; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 20px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body oncontextmenu="return false;">
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="app-container">
+    
+    <!-- MÀN HÌNH QUẢN TRỊ GIÁO VIÊN (Nếu URL có chứa ?mode=admin) -->
+    <div id="screen-admin" class="card-3d admin-container hidden">
+      <span class="badge-3d">TRƯỜNG THPT LÊ DUẨN - QUẢN TRỊ PHÒNG THI</span>
+      <h1 style="font-size: 24px; margin-bottom: 6px;">Bảng Điều Phối Phòng Chờ Trực Tuyến</h1>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">Danh sách học sinh đang chờ giáo viên duyệt vào làm bài kiểm tra.</p>
+      
+      <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+        <button class="btn-3d" onclick="approveAll()">⚡ DUYỆT TẤT CẢ HỌC SINH VÀO THI</button>
+        <button class="btn-3d" style="background: linear-gradient(135deg, #ff2e54, #b30024); box-shadow: 0 6px 0 #800018;" onclick="resetRoom()">🔄 LÀM MỚI PHÒNG THI</button>
+      </div>
+
+      <div style="max-height: 450px; overflow-y: auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Thời gian vào</th>
+              <th>Họ và tên</th>
+              <th>Lớp</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="admin-student-list">
+            <tr><td colspan="5" style="text-align:center;">Đang tải danh sách...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MÀN HÌNH HỌC SINH: ĐĂNG NHẬP -->
+    <div id="screen-login" class="card-3d">
+      <div class="login-header">
+        <span class="badge-3d">THPT LÊ DUẨN - TÂY NINH</span>
+        <h1>Hệ Thống Kiểm Tra Trắc Nghiệm Môn Tin học Lớp 12</h1>
+        <p>Nhập thông tin cá nhân để kết nối vào phòng thi</p>
+      </div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>Họ và tên học sinh *</label>
+          <input type="text" id="hs-name" class="input-3d" placeholder="Ví dụ: Nguyễn Văn An" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Lớp *</label>
+          <input type="text" id="hs-class" class="input-3d" placeholder="Ví dụ: 10A1" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn-3d">VÀO PHÒNG CHỜ THI</button>
+      </form>
+    </div>
+
+    <!-- MÀN HÌNH PHÒNG CHỜ (CHỜ GIÁO VIÊN DUYỆT) -->
+    <div id="screen-waiting" class="card-3d hidden waiting-box">
+      <span class="badge-3d">PHÒNG CHỜ THI TRỰC TUYẾN</span>
+      <div class="pulse-ring">⏳</div>
+      <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Đang chờ giáo viên phát lệnh...</h2>
+      <p style="color: var(--text-muted); font-size: 15px; max-width: 450px; margin: 0 auto 24px;">Bạn đã điểm danh thành công. Vui lòng giữ nguyên màn hình này, hệ thống sẽ tự động đưa bạn vào làm bài khi giáo viên bấm <strong>"Duyệt tất cả"</strong>.</p>
+      <div class="loader"></div>
+      <p id="wait-student-tag" style="font-weight: 700; color: var(--primary); margin-top: 12px;"></p>
+    </div>
+
+    <!-- MÀN HÌNH LÀM BÀI KIỂM TRA -->
+    <div id="screen-exam" class="card-3d hidden">
+      <div class="exam-topbar">
+        <div class="student-badge">
+          <div class="avatar-3d" id="avatar-initials">HS</div>
+          <div class="student-info">
+            <h4 id="display-name" style="font-size:15px; font-weight:700;">Học sinh</h4>
+            <span id="display-class" style="font-size:13px; color:var(--text-muted);">Lớp: --</span>
+          </div>
+        </div>
+        <div class="progress-wrapper">
+          <div style="font-size: 13px; font-weight: 700; color: var(--primary); display:flex; justify-content:space-between;">
+            <span>Tiến độ</span><span id="progress-text">0/0</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progress-bar"></div></div>
+        </div>
+        <div class="timer-box" id="timer-container">⏱ <span id="countdown-timer">00:00</span></div>
+      </div>
+
+      <div class="question-card" id="question-container">
+        <span class="q-number" id="q-number-label">Câu hỏi 1</span>
+        <div class="q-text" id="q-content">Nội dung câu hỏi</div>
+        <div id="q-image-box" class="q-image hidden"><img id="q-img" src="" alt="Minh họa"></div>
+        <div class="options-grid" id="options-list"></div>
+      </div>
+
+      <div class="nav-footer">
+        <button type="button" class="btn-nav" id="btn-prev" onclick="changeQuestion(-1)">← Câu trước</button>
+        <div class="question-dots" id="question-dots"></div>
+        <button type="button" class="btn-nav" id="btn-next" onclick="changeQuestion(1)">Câu tiếp →</button>
+      </div>
+
+      <div style="margin-top: 24px;">
+        <button type="button" class="btn-3d" onclick="confirmManualSubmit()">NỘP BÀI KIỂM TRA</button>
+      </div>
+    </div>
+
+    <!-- MÀN HÌNH KẾT QUẢ -->
+    <div id="screen-result" class="card-3d hidden" style="text-align: center;">
+      <span class="badge-3d">HOÀN THÀNH BÀI THI</span>
+      <h1 style="font-size: 24px; margin-bottom: 8px;" id="res-title">Chúc mừng bạn đã hoàn thành!</h1>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">Điểm số đã được ghi nhận tự động lên Google Sheet của trường.</p>
+      <div class="score-sphere">
+        <div style="font-size: 42px; font-weight: 800;" id="final-score">10</div>
+        <div style="font-size: 11px; font-weight: 700;">THANG ĐIỂM 10</div>
+      </div>
+      <div style="background: #f4f8ff; padding: 16px; border-radius: 16px; border: 1px solid #d6e4ff; margin-bottom: 20px;">
+        <p id="res-student-info" style="font-weight: 700; color: var(--text-main);"></p>
+        <p id="res-correct-info" style="color: var(--text-muted); margin-top: 4px;"></p>
+      </div>
+    </div>
+
+    <!-- MODAL CẢNH BÁO GIAN LẬN -->
+    <div id="cheat-modal" class="modal-overlay hidden">
+      <div class="warning-card">
+        <div style="font-size: 40px; margin-bottom: 12px;">⚠️</div>
+        <h2 style="color: var(--danger); font-size: 22px; font-weight: 800; margin-bottom: 10px;">CẢNH BÁO VI PHẠM LẦN 1</h2>
+        <p style="margin-bottom: 20px; line-height: 1.5;">Hệ thống phát hiện bạn vừa <strong>rời khỏi màn hình hoặc chuyển tab</strong>.<br>Nếu vi phạm lần 2, bài thi sẽ tự động thu hồi và tính <strong>0 điểm</strong>!</p>
+        <button type="button" class="btn-3d" style="background: var(--danger);" onclick="resumeExam()">QUAY LẠI LÀM BÀI</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ⚠️ QUAN TRỌNG: Thay URL dưới đây bằng Web App URL của Google Apps Script bạn đã deploy
+    const API_URL = "https://script.google.com/macros/s/AKfycbzXnIBB0JGQQQP0B1g4dkzftOiwKGcR_M57cX_p3dE2yXpmFV4-Zp7AsW73ip1Ri-MDLg/exec";
+
+    let studentInfo = { name: '', className: '' };
+    let examData = null;
+    let currentIdx = 0;
+    let userAnswers = [];
+    let timerInterval = null;
+    let remainingSeconds = 0;
+    let isExamActive = false;
+    let isSubmitting = false;
+    let violationCount = 0;
+    let lastViolationTime = 0;
+    let statusPollInterval = null;
+
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('mode') === 'admin') {
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-admin').classList.remove('hidden');
+        fetchWaitingList();
+        setInterval(fetchWaitingList, 3000);
+      }
+    };
+
+    // --- CÁC HÀM DÀNH CHO GIÁO VIÊN (ADMIN) ---
+    function fetchWaitingList() {
+      fetch(`${API_URL}?action=getWaitingList`)
+        .then(res => res.json())
+        .then(list => {
+          const tbody = document.getElementById('admin-student-list');
+          if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#5a7194;">Chưa có học sinh nào đăng nhập phòng chờ.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = list.map((s, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${s.time}</td>
+              <td><strong>${s.name}</strong></td>
+              <td>${s.className}</td>
+              <td><span style="padding: 4px 10px; border-radius: 8px; font-size:12px; font-weight:700; background:${s.status==='Đã vào thi'?'#d1fae5':'#fef3c7'}; color:${s.status==='Đã vào thi'?'#047857':'#b45309'};">${s.status}</span></td>
+            </tr>
+          `).join('');
+        }).catch(err => console.error(err));
+    }
+
+    function approveAll() {
+      if (!confirm('Bạn có chắc chắn muốn duyệt toàn bộ học sinh bắt đầu làm bài kiểm tra?')) return;
+      fetch(`${API_URL}?action=approveAll`)
+        .then(res => res.json())
+        .then(() => { alert('Đã phát lệnh bắt đầu thi cho toàn bộ học sinh!'); });
+    }
+
+    function resetRoom() {
+      if (!confirm('Thao tác này sẽ xóa toàn bộ danh sách phòng chờ cũ. Bạn có chắc không?')) return;
+      fetch(`${API_URL}?action=resetRoom`)
+        .then(res => res.json())
+        .then(() => { alert('Đã làm mới phòng thi!'); fetchWaitingList(); });
+    }
+
+    // --- CÁC HÀM DÀNH CHO HỌC SINH ---
+    function handleLogin(e) {
+      e.preventDefault();
+      studentInfo.name = document.getElementById('hs-name').value.trim();
+      studentInfo.className = document.getElementById('hs-class').value.trim();
+
+      document.getElementById('screen-login').classList.add('hidden');
+      document.getElementById('screen-waiting').classList.remove('hidden');
+      document.getElementById('wait-student-tag').innerText = `Học sinh: ${studentInfo.name} - Lớp ${studentInfo.className}`;
+
+      fetch(`${API_URL}?action=register&name=${encodeURIComponent(studentInfo.name)}&className=${encodeURIComponent(studentInfo.className)}`)
+        .then(res => res.json())
+        .catch(err => console.error(err));
+
+      statusPollInterval = setInterval(pollExamStatus, 2000);
+    }
+
+    function pollExamStatus() {
+      fetch(`${API_URL}?action=checkStatus`)
+        .then(res => res.json())
+        .then(res => {
+          if (res.status === 'BAT_DAU_THI') {
+            clearInterval(statusPollInterval);
+            examData = res.examData;
+            startExamSession();
+          }
+        }).catch(err => console.error(err));
+    }
+
+    function startExamSession() {
+      userAnswers = new Array(examData.questions.length).fill(null);
+      document.getElementById('display-name').innerText = studentInfo.name;
+      document.getElementById('display-class').innerText = 'Lớp: ' + studentInfo.className;
+      document.getElementById('avatar-initials').innerText = studentInfo.name.split(' ').pop().charAt(0).toUpperCase();
+
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+
+      document.getElementById('screen-waiting').classList.add('hidden');
+      document.getElementById('screen-exam').classList.remove('hidden');
+
+      isExamActive = true;
+      remainingSeconds = examData.timeLimit * 60;
+      renderDots();
+      renderQuestion(0);
+      updateProgress();
+      startTimer();
+      setupAntiCheat();
+    }
+
+    function setupAntiCheat() {
+      document.addEventListener('visibilitychange', () => { if (document.hidden && isExamActive && !isSubmitting) triggerCheat(); });
+      window.addEventListener('blur', () => { if (isExamActive && !isSubmitting) triggerCheat(); });
+    }
+
+    function triggerCheat() {
+      const now = Date.now();
+      if (now - lastViolationTime < 1500) return;
+      lastViolationTime = now;
+      violationCount++;
+      playSiren();
+
+      if (violationCount === 1) {
+        document.getElementById('cheat-modal').classList.remove('hidden');
+      } else {
+        document.getElementById('cheat-modal').classList.add('hidden');
+        submitExam(true);
+      }
+    }
+
+    function resumeExam() {
+      document.getElementById('cheat-modal').classList.add('hidden');
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    function playSiren() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.6);
+      } catch(e) {}
+    }
+
+    function startTimer() {
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        updateTimerDisplay();
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          submitExam(false);
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(Math.max(0, remainingSeconds) / 60);
+      const s = Math.max(0, remainingSeconds) % 60;
+      document.getElementById('countdown-timer').innerText = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+
+    function renderQuestion(idx) {
+      currentIdx = idx;
+      const q = examData.questions[idx];
+      document.getElementById('q-number-label').innerText = `Câu hỏi ${idx + 1} / ${examData.questions.length}`;
+      document.getElementById('q-content').innerText = q.question;
+
+      const imgBox = document.getElementById('q-image-box');
+      const imgEl = document.getElementById('q-img');
+      if (q.imageUrl && q.imageUrl.length > 5) {
+        imgEl.src = q.imageUrl;
+        imgBox.classList.remove('hidden');
+      } else {
+        imgBox.classList.add('hidden');
+      }
+
+      const letters = ['A', 'B', 'C', 'D'];
+      const optionsHtml = q.options.map((optText, optIdx) => {
+        const isSelected = userAnswers[idx] === optIdx;
+        return `
+          <div class="option-item ${isSelected ? 'selected' : ''}" onclick="selectOption(${optIdx})">
+            <div class="opt-letter">${letters[optIdx]}</div>
+            <div style="font-size:15px; font-weight:600;">${optText}</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('options-list').innerHTML = optionsHtml;
+      document.getElementById('btn-prev').disabled = idx === 0;
+      document.getElementById('btn-next').disabled = idx === examData.questions.length - 1;
+      renderDots();
+    }
+
+    function selectOption(optIdx) {
+      userAnswers[currentIdx] = optIdx;
+      renderQuestion(currentIdx);
+      updateProgress();
+    }
+
+    function changeQuestion(step) {
+      const next = currentIdx + step;
+      if (next >= 0 && next < examData.questions.length) renderQuestion(next);
+    }
+
+    function renderDots() {
+      const dotsHtml = examData.questions.map((_, i) => {
+        const active = i === currentIdx ? 'active' : '';
+        const answered = userAnswers[i] !== null ? 'answered' : '';
+        return `<div class="dot ${active} ${answered}" onclick="renderQuestion(${i})">${i + 1}</div>`;
+      }).join('');
+      document.getElementById('question-dots').innerHTML = dotsHtml;
+    }
+
+    function updateProgress() {
+      const answered = userAnswers.filter(a => a !== null).length;
+      const total = examData.questions.length;
+      const pct = Math.round((answered / total) * 100);
+      document.getElementById('progress-text').innerText = `${answered}/${total}`;
+      document.getElementById('progress-bar').style.width = pct + '%';
+    }
+
+    function confirmManualSubmit() {
+      const un = userAnswers.filter(a => a === null).length;
+      if (un > 0 && !confirm(`Bạn còn ${un} câu chưa chọn. Bạn có chắc chắn muốn nộp bài?`)) return;
+      submitExam(false);
+    }
+
+    function submitExam(isCheating) {
+      if (isSubmitting) return;
+      isSubmitting = true;
+      isExamActive = false;
+      clearInterval(timerInterval);
+
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+
+      let correct = 0;
+      examData.questions.forEach((q, idx) => { if (userAnswers[idx] === q.correctIndex) correct++; });
+
+      const payload = {
+        fullName: studentInfo.name,
+        className: studentInfo.className,
+        correct: correct,
+        total: examData.questions.length,
+        violations: violationCount,
+        isCheating: isCheating
+      };
+
+      document.getElementById('screen-exam').innerHTML = `<div style="text-align:center; padding:40px;"><div class="loader"></div><h3>Đang lưu kết quả lên hệ thống...</h3></div>`;
+
+      fetch(`${API_URL}?action=submitResult`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        document.getElementById('screen-exam').classList.add('hidden');
+        document.getElementById('screen-result').classList.remove('hidden');
+        document.getElementById('final-score').innerText = res.score;
+        document.getElementById('res-student-info').innerText = `${studentInfo.name} (${studentInfo.className})`;
+        document.getElementById('res-correct-info').innerText = `Số câu đúng: ${res.correct}/${res.total} — Trạng thái: ${res.status}`;
+        if (isCheating) {
+          document.getElementById('res-title').innerText = 'Bài thi đã bị đình chỉ!';
+          document.getElementById('res-title').style.color = 'var(--danger)';
+        } else {
+          if (typeof confetti === 'function') confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        }
+      }).catch(err => alert('Lỗi nộp bài: ' + err));
+    }
+  </script>
+</body>
+</html>
