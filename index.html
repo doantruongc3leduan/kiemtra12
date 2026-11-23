@@ -47,6 +47,7 @@
     .btn-3d { width: 100%; padding: 18px 28px; border: none; border-radius: 18px; background: linear-gradient(135deg, var(--primary), #0052cc); color: var(--white); font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 0 var(--primary-dark), 0 15px 25px rgba(0,102,255,0.35); transition: all 0.15s ease; }
     .btn-3d:hover { transform: translateY(-2px); }
     .btn-3d:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--primary-dark); }
+    .btn-3d:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
     /* Màn hình phòng chờ */
     .waiting-box { text-align: center; padding: 20px 0; }
@@ -66,6 +67,7 @@
     .progress-track { height: 12px; background: #e6f0ff; border-radius: 10px; overflow: hidden; margin-top: 6px; }
     .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.3s ease; }
     .timer-box { justify-self: end; background: var(--primary-light); padding: 10px 18px; border-radius: 16px; font-weight: 800; font-size: 18px; color: var(--primary-dark); border: 2px solid #cce0ff; }
+    .timer-box.urgent { background: #ffe5ea; color: var(--danger); border-color: #ffb3c1; }
 
     .question-card { background: var(--white); border-radius: 22px; padding: 30px; border: 1px solid #e1ecff; box-shadow: 0 12px 30px rgba(0,102,255,0.06); margin-bottom: 24px; }
     .q-number { display: inline-block; background: var(--primary-light); color: var(--primary); font-weight: 800; font-size: 13px; padding: 6px 14px; border-radius: 10px; margin-bottom: 14px; }
@@ -144,9 +146,9 @@
         </div>
         <div class="form-group">
           <label>Lớp *</label>
-          <input type="text" id="hs-class" class="input-3d" placeholder="Ví dụ: 10A1" required autocomplete="off">
+          <input type="text" id="hs-class" class="input-3d" placeholder="Ví dụ: 12A1" required autocomplete="off">
         </div>
-        <button type="submit" class="btn-3d">VÀO PHÒNG CHỜ THI</button>
+        <button type="submit" id="btn-login" class="btn-3d">VÀO PHÒNG CHỜ THI</button>
       </form>
     </div>
 
@@ -162,6 +164,7 @@
 
     <!-- MÀN HÌNH LÀM BÀI KIỂM TRA -->
     <div id="screen-exam" class="card-3d hidden">
+      <div id="exam-title-banner" style="text-align:center; font-weight:800; color:var(--primary-dark); font-size:16px; margin-bottom:14px; text-transform:uppercase;"></div>
       <div class="exam-topbar">
         <div class="student-badge">
           <div class="avatar-3d" id="avatar-initials">HS</div>
@@ -225,8 +228,8 @@
   </div>
 
   <script>
-    // ⚠️ QUAN TRỌNG: Thay URL dưới đây bằng Web App URL của Google Apps Script bạn đã deploy
-    const API_URL = "https://script.google.com/macros/s/AKfycbzoUsIv8P6FkZbjyxCPBkSsTwcrU9L7aAG3Ga-N5JVSlG3qF2eLqodf9OkmZm3LXFeNKQ/exec";
+    // ⚠️ QUAN TRỌNG: Thay URL dưới đây bằng Web App URL của Google Apps Script sau khi deploy phiên bản mới
+    const API_URL = "https://script.google.com/macros/s/AKfycbxoY_xaEaWLa4civstHZiQsbHhjWZqVtAmSodtT_lsx5qVOqT7cAwJJkzRJ5HaIyk78xQ/exec";
 
     let studentInfo = { name: '', className: '' };
     let examData = null;
@@ -236,9 +239,10 @@
     let remainingSeconds = 0;
     let isExamActive = false;
     let isSubmitting = false;
+    let isPolling = false;
     let violationCount = 0;
     let lastViolationTime = 0;
-    let statusPollInterval = null;
+    let statusPollTimeout = null;
 
     window.onload = function() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -246,7 +250,6 @@
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-admin').classList.remove('hidden');
         fetchWaitingList();
-        setInterval(fetchWaitingList, 3000);
       }
     };
 
@@ -258,18 +261,23 @@
           const tbody = document.getElementById('admin-student-list');
           if (!list || list.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#5a7194;">Chưa có học sinh nào đăng nhập phòng chờ.</td></tr>';
-            return;
+          } else {
+            tbody.innerHTML = list.map((s, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${s.time}</td>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.className}</td>
+                <td><span style="padding: 4px 10px; border-radius: 8px; font-size:12px; font-weight:700; background:${s.status==='Đã vào thi'?'#d1fae5':'#fef3c7'}; color:${s.status==='Đã vào thi'?'#047857':'#b45309'};">${s.status}</span></td>
+              </tr>
+            `).join('');
           }
-          tbody.innerHTML = list.map((s, i) => `
-            <tr>
-              <td>${i + 1}</td>
-              <td>${s.time}</td>
-              <td><strong>${s.name}</strong></td>
-              <td>${s.className}</td>
-              <td><span style="padding: 4px 10px; border-radius: 8px; font-size:12px; font-weight:700; background:${s.status==='Đã vào thi'?'#d1fae5':'#fef3c7'}; color:${s.status==='Đã vào thi'?'#047857':'#b45309'};">${s.status}</span></td>
-            </tr>
-          `).join('');
-        }).catch(err => console.error(err));
+          setTimeout(fetchWaitingList, 3000);
+        })
+        .catch(err => {
+          console.error(err);
+          setTimeout(fetchWaitingList, 4000);
+        });
     }
 
     function approveAll() {
@@ -280,15 +288,21 @@
     }
 
     function resetRoom() {
-      if (!confirm('Thao tác này sẽ xóa toàn bộ danh sách phòng chờ cũ. Bạn có chắc không?')) return;
+      if (!confirm('Thao tác này sẽ xóa toàn bộ danh sách phòng chờ cũ và khóa phòng thi. Bạn có chắc không?')) return;
       fetch(`${API_URL}?action=resetRoom`)
         .then(res => res.json())
-        .then(() => { alert('Đã làm mới phòng thi!'); fetchWaitingList(); });
+        .then(() => { alert('Đã làm mới phòng thi!'); });
     }
 
     // --- CÁC HÀM DÀNH CHO HỌC SINH ---
     function handleLogin(e) {
       e.preventDefault();
+      if (isPolling || isExamActive) return;
+
+      const btnLogin = document.getElementById('btn-login');
+      btnLogin.disabled = true;
+      btnLogin.innerText = "ĐANG KẾT NỐI PHÒNG THI...";
+
       studentInfo.name = document.getElementById('hs-name').value.trim();
       studentInfo.className = document.getElementById('hs-class').value.trim();
 
@@ -300,23 +314,39 @@
         .then(res => res.json())
         .catch(err => console.error(err));
 
-      statusPollInterval = setInterval(pollExamStatus, 2000);
+      isPolling = true;
+      pollExamStatus();
     }
 
     function pollExamStatus() {
+      if (!isPolling || isExamActive) return;
+
       fetch(`${API_URL}?action=checkStatus`)
         .then(res => res.json())
         .then(res => {
           if (res.status === 'BAT_DAU_THI') {
-            clearInterval(statusPollInterval);
-            examData = res.examData;
-            startExamSession();
+            isPolling = false;
+            if (!isExamActive) {
+              examData = res.examData;
+              startExamSession();
+            }
+          } else if (isPolling) {
+            statusPollTimeout = setTimeout(pollExamStatus, 2000);
           }
-        }).catch(err => console.error(err));
+        })
+        .catch(err => {
+          console.error(err);
+          if (isPolling) statusPollTimeout = setTimeout(pollExamStatus, 3000);
+        });
     }
 
     function startExamSession() {
+      if (isExamActive) return;
+      isExamActive = true;
+      clearTimeout(statusPollTimeout);
+
       userAnswers = new Array(examData.questions.length).fill(null);
+      document.getElementById('exam-title-banner').innerText = examData.examTitle || '';
       document.getElementById('display-name').innerText = studentInfo.name;
       document.getElementById('display-class').innerText = 'Lớp: ' + studentInfo.className;
       document.getElementById('avatar-initials').innerText = studentInfo.name.split(' ').pop().charAt(0).toUpperCase();
@@ -328,8 +358,9 @@
       document.getElementById('screen-waiting').classList.add('hidden');
       document.getElementById('screen-exam').classList.remove('hidden');
 
-      isExamActive = true;
-      remainingSeconds = examData.timeLimit * 60;
+      const minutes = parseInt(examData.timeLimit, 10) || 15;
+      remainingSeconds = minutes * 60;
+
       renderDots();
       renderQuestion(0);
       updateProgress();
@@ -377,15 +408,24 @@
     }
 
     function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+
+      const endTime = Date.now() + remainingSeconds * 1000;
       updateTimerDisplay();
+
       timerInterval = setInterval(() => {
-        remainingSeconds--;
+        remainingSeconds = Math.max(0, Math.round((endTime - Date.now()) / 1000));
         updateTimerDisplay();
+
+        if (remainingSeconds <= 60) {
+          document.getElementById('timer-container').classList.add('urgent');
+        }
+
         if (remainingSeconds <= 0) {
           clearInterval(timerInterval);
           submitExam(false);
         }
-      }, 1000);
+      }, 500);
     }
 
     function updateTimerDisplay() {
